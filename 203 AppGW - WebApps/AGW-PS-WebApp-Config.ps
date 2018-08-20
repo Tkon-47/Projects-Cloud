@@ -1,0 +1,34 @@
+# The following script is to modify existing app gateway to support load balancing 
+
+# For this example to work, you must have already created a Web App and an Application Gateway
+
+# This example uses powershell: if you don't have powershell Azure module installed, you can run from the CloudShell in 
+# portal.azure.com - select powershell from CloudShell option instead of Bash
+
+# More details available here
+# https://docs.microsoft.com/en-us/azure/application-gateway/application-gateway-web-app-powershell
+
+# FQDN of the web app (change to the domain name for you website)
+$webappFQDN = "kolkewordpressthing.azurewebsites.net"
+
+# Retrieve an existing application gateway (change name of App Gateway and Resource Group)
+$gw = Get-AzureRmApplicationGateway -Name webaappgateway -ResourceGroupName kolkewordpressthing
+
+# Define the status codes to match for the probe
+$match=New-AzureRmApplicationGatewayProbeHealthResponseMatch -StatusCode 200-399
+
+# Add a new probe to the application gateway
+Add-AzureRmApplicationGatewayProbeConfig -name webappprobe2 -ApplicationGateway $gw -Protocol Http -Path / -Interval 30 -Timeout 120 -UnhealthyThreshold 3 -PickHostNameFromBackendHttpSettings -Match $match
+
+# Retrieve the newly added probe
+$probe = Get-AzureRmApplicationGatewayProbeConfig -name webappprobe2 -ApplicationGateway $gw
+
+# Configure an existing backend http settings 
+Set-AzureRmApplicationGatewayBackendHttpSettings -Name appGatewayBackendHttpSettings -ApplicationGateway $gw -PickHostNameFromBackendAddress -Port 80 -Protocol http -CookieBasedAffinity Disabled -RequestTimeout 30 -Probe $probe
+
+# Add the web app to the backend pool
+Set-AzureRmApplicationGatewayBackendAddressPool -Name appGatewayBackendPool -ApplicationGateway $gw -BackendFqdns $webappFQDN
+
+# Update the application gateway
+Set-AzureRmApplicationGateway -ApplicationGateway $gw
+
